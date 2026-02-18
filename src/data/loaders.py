@@ -11,11 +11,11 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
+from src.data import config as cfg
 from src.data.config import (
     DATE_RANGE,
     FRED_SERIES,
     MAX_RETRIES,
-    MIN_PERIODS,
     PORTFOLIO_WEIGHTS,
     STALE_DAYS_THRESHOLD,
     TICKERS,
@@ -73,8 +73,8 @@ def fetch_equity(
     if bdays_since > STALE_DAYS_THRESHOLD:
         warnings.warn(f"Stale data: last date {last_date.date()}, {bdays_since} business days ago")
 
-    if len(df) < MIN_PERIODS:
-        raise ValueError(f"Insufficient data: {len(df)} rows < minimum {MIN_PERIODS}")
+    if len(df) < cfg.MIN_PERIODS:
+        raise ValueError(f"Insufficient data: {len(df)} rows < minimum {cfg.MIN_PERIODS}")
 
     df.index = pd.to_datetime(df.index)
     if df.index.tz is not None:
@@ -160,9 +160,9 @@ def align_data(equity_df: pd.DataFrame, macro_df: pd.DataFrame) -> pd.DataFrame:
     if macro_cols:
         merged = merged.dropna(subset=macro_cols, how="all")
 
-    if len(merged) < MIN_PERIODS:
+    if len(merged) < cfg.MIN_PERIODS:
         raise ValueError(
-            f"Insufficient data after alignment: {len(merged)} rows < {MIN_PERIODS}"
+            f"Insufficient data after alignment: {len(merged)} rows < {cfg.MIN_PERIODS}"
         )
 
     return merged
