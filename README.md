@@ -8,7 +8,7 @@ The project is being developed following a comprehensive 14-day build plan, with
 
 ## 📊 Project Status
 
-This project is currently in active development. We have completed **4 out of 14 days** of the build plan.
+This project is currently in active development. We have completed **6 out of 14 days** of the build plan.
 
 ## 🗓️ Day-wise Progress
 
@@ -288,6 +288,112 @@ graph TD
     Eval --> Metrics["RMSE, MAE, R², Plots"]
 ```
 
+### Day 6: BAC ML Classification & Performance Improvements
+
+**Goal:** Build a production-quality ML classification pipeline to predict BAC's next-day price direction, then improve it with richer features, robust scaling, hyperparameter tuning, ensemble voting, and mutual-information feature selection.
+
+#### 1. Classification Pipeline Overview
+
+The module (`src/analytics/classification.py`) trains 5 models to predict whether BAC will go up or down tomorrow: Decision Tree, Random Forest, KNN, SVM, and a soft-voting Ensemble. The full pipeline is backward-compatible via an optional `tune` flag.
+
+```python
+# Quick mode (default) — fixed hyperparameters, fast
+result = run_classification(prices_df, macro_df=macro)
+
+# Tuned mode — RandomizedSearchCV + TimeSeriesSplit
+result = run_classification(prices_df, macro_df=macro, tune=True)
+```
+
+#### 2. Expanded Feature Set (9 to 18 Features)
+
+We added 9 new technical indicators on top of the original SMA/Lag/RSI features, all computed with vectorized pandas operations (no for-loops):
+
+| Feature | Method | Description |
+| :--- | :--- | :--- |
+| MACD, MACD_Signal, MACD_Hist | `_compute_macd` | Trend-following momentum via EMA crossover |
+| BB_%B | `_compute_bollinger_pctb` | Position within Bollinger Bands (0=lower, 1=upper) |
+| Stoch_K, Stoch_D | `_compute_stochastic` | Overbought/oversold oscillator (0-100) |
+| ROC_10, ROC_20 | `_compute_roc` | Rate of change over 10 and 20 periods |
+| RVol_20 | Rolling std | Realized volatility (annualized, 20-day window) |
+| SMA_Ratio | SMA_5 / SMA_20 | Short-term vs medium-term trend ratio |
+| Z_Score | (Price - SMA_20) / std_20 | Statistical deviation from mean |
+
+#### 3. RobustScaler (Replacing StandardScaler)
+
+Financial return data contains outlier gap moves (earnings, macro shocks). `StandardScaler` (mean/std) is sensitive to these outliers. We switched to `RobustScaler`, which uses **median and interquartile range (IQR)**, making the scaling robust to extreme values.
+
+```python
+# Before: StandardScaler (mean=0, std=1)
+# After:  RobustScaler (median=0, scaled by IQR)
+scaler = RobustScaler()
+X_train = scaler.fit_transform(X_train)
+```
+
+#### 4. Mutual Information Feature Selection
+
+Before training, we compute mutual information (MI) scores between each feature and the target. Features with MI below a configurable threshold (`MI_THRESHOLD = 0.001`) are pruned. This removes noise features that hurt model performance. A fallback keeps all features if none pass the threshold.
+
+```python
+mi_df = compute_mutual_info(X_train, y_train, feature_names)
+X_train, X_test, feat_names = select_features(X_train, X_test, mi_df, feat_names)
+```
+
+#### 5. Hyperparameter Tuning with Time-Series Cross-Validation
+
+When `tune=True`, each classifier is tuned via `RandomizedSearchCV` with `TimeSeriesSplit(n_splits=5)`. This respects the temporal ordering of financial data (no future data leaking into validation folds). Memory-safe with `n_jobs=1` for Streamlit Cloud's 1GB limit.
+
+| Model | Tuned Hyperparameters |
+| :--- | :--- |
+| Decision Tree | `max_depth` [3,5,7,10], `min_samples_leaf` [10,20,50] |
+| Random Forest | `n_estimators` [50,100,200], `max_depth` [5,10,15], `max_features` [sqrt, log2] |
+| KNN | `n_neighbors` [3,5,7,11], `weights` [uniform, distance], `metric` [euclidean, manhattan] |
+| SVM | `C` [0.1, 1, 10], `gamma` [scale, auto] |
+
+#### 6. Soft-Voting Ensemble
+
+A `VotingClassifier` combines the three strongest classifiers (RF + KNN + SVM) with soft voting (probability-weighted). Decision Tree is excluded since Random Forest already contains tree-based learners and DT is typically the weakest individual model.
+
+#### 7. Classification Pipeline Diagram
+
+```mermaid
+graph TD
+    Prices[Price Data] --> FE["Feature Engineering - 18 Features"]
+    Macro[Macro Data] --> FE
+    FE --> Scale[RobustScaler]
+    Scale --> MI[Mutual Information Selection]
+    MI --> Decision{"Tune Mode?"}
+
+    Decision -- No --> Train["Train Models - Fixed Params"]
+    Decision -- Yes --> Tune["RandomizedSearchCV + TimeSeriesSplit"]
+
+    Train --> Models["DT + RF + KNN + SVM"]
+    Tune --> Models
+
+    Models --> Ensemble["Soft-Voting Ensemble - RF+KNN+SVM"]
+    Models --> Eval["Evaluate All 5 Models"]
+    Ensemble --> Eval
+
+    Eval --> Metrics["Accuracy, Precision, Recall, F1, AUC"]
+    Eval --> FI[Feature Importance]
+    Eval --> CM[Confusion Matrices]
+```
+
+#### 8. Test Coverage (38 Tests)
+
+| Test Class | Tests | What It Validates |
+| :--- | :--- | :--- |
+| `TestPrepareFeatures` | 9 | Shapes, split ratio, scaling, macro integration, expanded feature count |
+| `TestNewIndicators` | 5 | MACD columns, Bollinger %B range, Stochastic [0,100], ROC known value |
+| `TestTrainModels` | 2 | All 4 models fitted, RF OOB score |
+| `TestTuneModels` | 2 | Returns tuned models + cv_results, predictions are binary |
+| `TestVotingEnsemble` | 2 | Predicts binary, has predict_proba summing to 1 |
+| `TestMutualInfo` | 3 | MI scores non-negative, selection with high/low thresholds |
+| `TestEvaluateModels` | 3 | Metric structure, prediction lengths, confusion matrix shape |
+| `TestFeatureImportance` | 3 | Sums to 1, sorted descending, all features present |
+| `TestRunClassification` | 5 | End-to-end (5 models), macro integration, ensemble in metrics, MI in result |
+| `TestRunClassificationTuned` | 2 | Tune mode returns cv_results + mutual_info |
+| `TestRSI` | 2 | Bounds [0,100], rising prices near 100 |
+
 ## 🛠️ Setup and Usage
 
 To get started with the project, follow these steps:
@@ -316,11 +422,12 @@ To get started with the project, follow these steps:
 
 The project will continue to be developed following the 14-day plan. Here are the upcoming tasks:
 
--   **Day 5:** AAPL Regression with Diagnostics
--   **Day 6:** BAC ML Classification
 -   **Day 7:** GARCH Volatility Modeling
 -   **Day 8:** Volatility Tests + ARCH LM Test
 -   **Day 9:** Black-Scholes + Greeks
--   And more...
+-   **Day 10:** Vectorized CRR Binomial Tree
+-   **Day 11:** Hedging Simulation
+-   **Day 12-13:** Streamlit UI (4 Tabs)
+-   **Day 14:** Docker, CI/CD, Deployment
 
 Stay tuned for more updates!
