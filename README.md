@@ -14,99 +14,198 @@ This project is currently in active development. We have completed **4 out of 14
 
 Here's a summary of the work completed so far:
 
-### Day 1: Project Scaffolding & Data Configuration
+### Day 1: Project Scaffolding & Configuration
 
-The first day was dedicated to setting up the foundational structure of the project. This involved creating the directory layout, defining dependencies, and configuring the application settings. A well-organized structure is crucial for maintainability and scalability.
+**Goal:** Establish the project structure, development environment, and centralized configuration.
 
-**Key Achievements:**
--   **Modular Directory Structure:** The project is organized into distinct modules for data, analytics, pricing, and UI, promoting a clean separation of concerns.
--   **Centralized Configuration:** All important parameters like stock tickers, macroeconomic series IDs, portfolio weights, and date ranges are centralized in `src/data/config.py`, making them easy to manage and modify.
--   **Dependency Management:** All required Python packages are listed in `requirements.txt`, ensuring a reproducible environment.
--   **Version Control:** A `.gitignore` file is configured to exclude unnecessary files, keeping the repository clean.
--   **Application Theme:** The Streamlit application is configured with a dark theme for a modern and visually appealing user interface.
+#### 1. Project Structure
+We adopted a modular directory structure to separate concerns:
+- `src/data`: Data ingestion and processing.
+- `src/analytics`: Core financial calculations and risk metrics.
+- `src/pricing`: Derivatives pricing models (planned).
+- `src/ui`: Streamlit dashboard components (planned).
+- `tests`: Unit tests mirroring the source structure.
 
-**Project Structure Diagram:**
+#### 2. Centralized Configuration (`src/data/config.py`)
+A single source of truth for all project constants was created. This ensures consistency and easy tuning of parameters.
 
-```mermaid
-graph TD
-    A[quant-platform] --> B[src];
-    A --> C[tests];
-    A --> D[.streamlit];
-    A --> E[requirements.txt];
-    A --> F[.gitignore];
-
-    B --> B1[data];
-    B --> B2[analytics];
-    B --> B3[pricing];
-    B --> B4[ui];
-
-    B1 --> B1a[config.py];
-    D --> Da[config.toml];
-```
-
-### Day 2: Data Loaders & Macro Alignment
-
-On the second day, we focused on building the data ingestion pipeline. This is a critical component that fetches raw data from external sources and prepares it for analysis.
-
-**Key Achievements:**
--   **Equity Data Loader:** An efficient data loader was implemented to fetch historical stock prices from Yahoo Finance. It includes features like exponential backoff for retries to handle network issues.
--   **Macroeconomic Data Loader:** A loader for fetching macroeconomic data from the Federal Reserve Economic Data (FRED) was created. It is designed with graceful degradation, meaning the application can still function without a FRED API key, albeit with reduced features.
--   **Data Alignment:** A sophisticated data alignment mechanism was developed to merge equity and macroeconomic data. It uses a backward-looking `merge_asof` to prevent look-ahead bias, a common pitfall in financial analysis.
--   **Log Returns Calculation:** A function to compute logarithmic returns was added. Log returns are widely used in quantitative finance for their desirable statistical properties.
-
-**Data Flow Diagram:**
-
-```mermaid
-graph TD
-    subgraph Data Ingestion
-        A[yfinance API] --> B(Equity Data);
-        C[FRED API] --> D(Macro Data);
-    end
-
-    subgraph Data Processing
-        B --> E{Align Data};
-        D --> E;
-        E --> F(Compute Log Returns);
-    end
-
-    subgraph Output
-        F --> G[Cleaned & Aligned Data];
-    end
-```
-
-### Day 3: Portfolio Risk Metrics
-
-The third day was focused on implementing the core portfolio risk analytics. This module provides a comprehensive view of the risk profile of a given investment portfolio.
-
-**Key Achievements:**
--   **Weighted Returns:** A function to calculate the weighted returns of a portfolio based on the weights of its individual assets.
--   **Risk Metrics Implementation:** We implemented a suite of industry-standard risk metrics:
-    -   **Sharpe Ratio:** Measures the risk-adjusted return of a portfolio.
-    -   **Sortino Ratio:** A variation of the Sharpe ratio that only considers downside volatility.
-    -   **CAPM Alpha and Beta:** Measures the performance of a portfolio relative to a benchmark index.
-    -   **Value at Risk (VaR):** Estimates the potential loss of a portfolio over a specific time horizon and confidence level. Both parametric and historical methods are implemented.
-    -   **Conditional Value at Risk (CVaR):** Also known as Expected Shortfall, it measures the expected loss beyond the VaR threshold.
-    -   **Maximum Drawdown:** Measures the largest peak-to-trough decline in the value of a portfolio.
-
-### Day 4: Portfolio Tests & Cumulative Returns
-
-On the fourth day, we solidified the portfolio analytics module by adding a comprehensive suite of unit tests. This is a crucial step to ensure the accuracy, reliability, and robustness of the calculated risk metrics.
-
-**Key Achievements:**
--   **Test Suite Creation:** A dedicated test file `tests/test_portfolio.py` was created to house all the unit tests for the portfolio analytics module.
--   **Comprehensive Test Coverage:** We implemented tests for all the risk metrics, covering various scenarios and edge cases.
--   **Edge Case Handling:** The tests include checks for specific edge cases, such as the handling of zero standard deviation in the Sharpe Ratio calculation, to prevent unexpected behavior.
--   **Validation Against Known Values:** The tests are designed to validate the output of the functions against known and expected results, ensuring the correctness of the implemented algorithms.
-
-**Example Test Case:**
+**Key Code Snippet:**
 ```python
-def test_sharpe_ratio_known():
-    # Daily returns = constant 0.001 (annualized ~25.2%), rf=0.0, std = 0
-    # Should return np.nan (std < 1e-8)
-    returns = pd.Series([0.001] * 252)
-    risk_free_rate = 0.0
-    sharpe = sharpe_ratio(returns, risk_free_rate)
-    assert np.isnan(sharpe)
+# src/data/config.py
+
+# Asset Definitions
+TICKERS = {
+    "banking": ["MS", "JPM", "BAC"],
+    "tech": ["AAPL"],
+    "market": ["^GSPC", "^IXIC"],
+}
+
+# Macroeconomic Series (FRED IDs)
+FRED_SERIES = {
+    "DGS10": "10Y Treasury",
+    "T10Y2Y": "Yield Curve",
+    "VIXCLS": "VIX",
+    # ...
+}
+
+# Portfolio Configuration
+PORTFOLIO_WEIGHTS = {"MS": 0.33, "JPM": 0.34, "BAC": 0.33}
+
+# Constants
+TRADING_DAYS = 252
+VAR_CONFIDENCE = 0.95
+```
+
+#### 3. Architecture Diagram
+```mermaid
+graph TD
+    Config[src/data/config.py] --> Loaders[src/data/loaders.py]
+    Config --> Analytics[src/analytics/*.py]
+    Config --> Tests[tests/*.py]
+    
+    subgraph Core Configuration
+        Diff[TICKERS]
+        Fred[FRED_SERIES]
+        Weights[PORTFOLIO_WEIGHTS]
+        Const[CONSTANTS]
+    end
+    
+    Diff --> Config
+    Fred --> Config
+    Weights --> Config
+    Const --> Config
+```
+
+### Day 2: Data Ingestion & Alignment
+
+**Goal:** Build robust data loaders for Equity (Yahoo Finance) and Macro (FRED) data, and align them without look-ahead bias.
+
+#### 1. Robust Data Fetching
+We implemented retry logic with exponential backoff for network resilience and graceful degradation if the FRED API key is missing.
+
+**Code Snippet: Equity Loader**
+```python
+# src/data/loaders.py
+
+def fetch_equity(tickers, start, end):
+    for attempt in range(MAX_RETRIES):
+        try:
+            df = yf.download(tickers, start=start, end=end, ...)
+            break
+        except Exception:
+            time.sleep(2**attempt)
+    # ... validation and cleaning ...
+    return df
+```
+
+#### 2. Time-Series Alignment
+To combine daily stock prices with potentially lower-frequency macro data (like GDP or CPI), we used `pd.merge_asof` with `direction='backward'`. This is crucial to avoid **look-ahead bias**—we only use macro data that was available *before* or *on* the trading day.
+
+**Code Snippet: Alignment**
+```python
+# src/data/loaders.py
+
+def align_data(equity_df, macro_df):
+    return pd.merge_asof(
+        equity_df,
+        macro_df,
+        on="date",
+        direction="backward",  # Critical for preventing look-ahead bias
+        tolerance=pd.Timedelta("90d")
+    )
+```
+
+#### 3. Data Flow Diagram
+```mermaid
+sequenceDiagram
+    participant User
+    participant Loader as Data Loader
+    participant YF as Yahoo Finance
+    participant FRED as FRED API
+    participant Cache as Local Cache
+
+    User->>Loader: Request Data
+    Loader->>YF: Fetch Stock Prices
+    YF-->>Loader: OHLCV Data
+    Loader->>FRED: Fetch Macro Data
+    FRED-->>Loader: Economic Indicators
+    Loader->>Loader: Compute Log Returns
+    Loader->>Loader: Align Timestamps (merge_asof)
+    Loader-->>User: Cleaned, Aligned Dataset
+```
+
+### Day 3: Portfolio Risk Analytics
+
+**Goal:** Implement industry-standard risk metrics to evaluate portfolio performance.
+
+#### 1. Core Metrics
+We implemented a comprehensive suite of risk metrics in `src/analytics/portfolio.py`.
+
+- **Sharpe Ratio**: Excess return per unit of total risk.
+- **Sortino Ratio**: Excess return per unit of downside risk.
+- **CAPM**: Alpha and Beta against the market.
+- **VaR (Value at Risk)**: Parametric and Historical.
+- **CVaR (Conditional VaR)**: Expected loss beyond VaR.
+- **Maximum Drawdown**: Worst peak-to-trough decline.
+
+**Code Snippet: Sharpe Ratio**
+```python
+# src/analytics/portfolio.py
+
+def sharpe_ratio(returns, risk_free_rate, periods=252):
+    excess = returns - (risk_free_rate / periods)
+    std = excess.std(ddof=1)
+    if std < 1e-8: return np.nan
+    return (excess.mean() * periods) / (std * np.sqrt(periods))
+```
+
+**Code Snippet: Parametric VaR**
+```python
+# src/analytics/portfolio.py
+
+def var_parametric(returns, confidence=0.95):
+    z = norm.ppf(1 - confidence)
+    return returns.mean() + z * returns.std(ddof=1)
+```
+
+#### 2. Analytics Logic Flow
+```mermaid
+graph LR
+    Input[Returns Series] --> Metrics
+    
+    subgraph Risk Metrics
+        Metrics --> Sharpe[Sharpe Ratio]
+        Metrics --> Sortino[Sortino Ratio]
+        Metrics --> VaR[Value at Risk]
+        Metrics --> CVaR[Expected Shortfall]
+        Metrics --> MDD[Max Drawdown]
+    end
+    
+    subgraph Models
+        Input --> CAPM[CAPM Alpha/Beta]
+    end
+```
+
+### Day 4: Testing & Verification
+
+**Goal:** Ensure correctness of financial calculations using strictly defined implementation tests.
+
+#### 1. Unit Testing Strategy
+We used `pytest` to validate the logic. Key focus areas included:
+- **Edge Cases**: Zero volatility, empty data, single-observation series.
+- **Correctness**: Comparing output against known theoretical values (e.g., VaR of a normal distribution).
+- **Sanity Checks**: Ensuring CVaR is always worse (lower) than VaR.
+
+**Code Snippet: Test Case**
+```python
+# tests/test_portfolio.py
+
+def test_cvar_worse_than_var():
+    """CVaR should always be <= VaR (more negative loss)."""
+    returns = np.random.normal(0, 0.02, 5000)
+    vh = var_historical(returns, confidence=0.95)
+    cv = cvar(returns, confidence=0.95)
+    assert cv <= vh
 ```
 
 ## 🛠️ Setup and Usage
