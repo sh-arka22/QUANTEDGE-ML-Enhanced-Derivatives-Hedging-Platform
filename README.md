@@ -222,56 +222,71 @@ The project `README.md` was updated to reflect the specific technical achievemen
 
 ### Day 5: AAPL Regression & Diagnostics
 
-**Goal:** Build a robust OLS regression model to predict AAPL returns using technical indicators and market lags, ensuring statistical validity through rigorous diagnostics.
+**Goal:** Build a robust, statistically sound OLS regression model to predict AAPL's next-day log returns. This module moves beyond simple correlation to causal inference and predictive modeling, with a strong emphasis on valid statistical inference.
 
-#### 1. Feature Engineering
-We implemented `prepare_features` to construct a predictive dataset:
--   **Target**: Next-day Log Returns ($t+1$).
--   **Predictors**:
-    -   **Lags**: Previous day's return ($t-1$) for AAPL, S&P 500, and NASDAQ.
-    -   **Technical**: SMA_5 and SMA_20 trends.
+#### 1. Feature Engineering & Data Preparation
+We constructed a rich feature set to capture various market dynamics:
+-   **Autoregressive Terms**: Lagged returns ($t-1$) of AAPL to capture mean reversion or momentum.
+-   **Market Leaders**: Lagged returns of S&P 500 (`^GSPC`) and NASDAQ (`^IXIC`) to control for systematic risk (Beta).
+-   **Trend Indicators**: Simple Moving Averages (SMA_5, SMA_20) to proxy for short-term and medium-term trends.
+-   **Target Variable**: Next-day Log Returns ($t+1$), aligned to prevent look-ahead bias.
 
-**Code Snippet: Feature Preparation**
+**Code Snippet: Feature Construction**
 ```python
 # src/analytics/regression.py
 
 def prepare_features(prices, market):
     # ... feature generation ...
-    # Chronological Split (No Shuffling!)
+    # Chronological Split (No Shuffling!) to respect time dimension
     split = int(len(X) * 0.8)
     X_train, X_test = X.iloc[:split], X.iloc[split:]
     return X_train, X_test, y_train, y_test
 ```
 
-#### 2. Statistical Diagnostics
-A key requirement was "Full Diagnostics". We implemented:
--   **VIF (Variance Inflation Factor)**: Checks for multicollinearity (Flag > 10).
--   **Breusch-Pagan**: Tests for heteroscedasticity (non-constant variance). If detected, strict robust standard errors (HC3) are optionally used.
--   **Durbin-Watson**: Tests for autocorrelation in residuals.
--   **Jarque-Bera**: Tests if residuals are normally distributed.
+#### 2. Robust Model Estimation
+The model fitting process is designed to be resilient:
+-   **Base Model**: Ordinary Least Squares (OLS) with a constant term.
+-   **Singularity Handling**: If the design matrix is singular (multicollinearity), the system automatically falls back to **Ridge Regression** ($L2$ regularization) to ensure numerical stability.
 
-**Code Snippet: Diagnostics Logic**
+#### 3. Comprehensive Statistical Diagnostics
+A regression model is only as good as its assumptions. We implemented a full suite of diagnostic tests:
+
+| Diagnostic Test | What it Checks | Implication / Action |
+| :--- | :--- | :--- |
+| **VIF** (Variance Inflation Factor) | Multicollinearity | Flag parameters with VIF > 10 (unstable coefficients). |
+| **Breusch-Pagan** | Heteroscedasticity | If p < 0.05 (variance is not constant), we automatically **refit with HC3 Robust Standard Errors**. |
+| **Durbin-Watson** | Autocorrelation | Checks if residuals are correlated with themselves (time-series bias). |
+| **Jarque-Bera** | Normality | Tests if residuals follow a normal distribution (crucial for valid p-values). |
+
+**Code Snippet: Automatic Robust Refitting**
 ```python
 # src/analytics/regression.py
 
-def diagnostics(model, X, y):
-    # ... VIF calculation ...
-    
-    # Breusch-Pagan for Heteroscedasticity
-    bp_stat, bp_pval, _, _ = het_breuschpagan(resid, exog)
-    
-    # Durbin-Watson for Autocorrelation
-    dw = durbin_watson(resid)
-    
-    return {"is_heteroscedastic": bp_pval < 0.05, "dw_stat": dw, ...}
+# Refit with robust SEs if heteroscedasticity is detected
+if diag["is_heteroscedastic"]:
+    model = sm.OLS(y, X).fit(cov_type="HC3")
 ```
 
-#### 3. Model Pipeline
-The `run_regression` orchestrator manages the entire flow:
-1.  Prepare Features (Train/Test Split).
-2.  Fit OLS Model (with Ridge fallback for singular matrices).
-3.  Run Diagnostics.
-4.  Evaluate (RMSE, MAE, R-squared).
+#### 4. Regression Pipeline
+The entire workflow is orchestrated to ensure data integrity and statistical validity.
+
+```mermaid
+graph TD
+    Data[Prices & Macro Data] --> Features[Feature Engineering]
+    Features --> Split[Train/Test Split Chronological]
+    Split --> Fit[Fit OLS Model]
+    Fit --> Check{Is Matrix Singular?}
+    Check -- Yes --> Ridge[Fit Ridge Regression]
+    Check -- No --> Diag[Run Diagnostics]
+    
+    Diag --> Het{Heteroscedasticity?}
+    Het -- Yes --> Robust[Refit with HC3 Errors]
+    Het -- No --> Eval[Evaluate Model]
+    Ridge --> Eval
+    Robust --> Eval
+    
+    Eval --> Metrics["RMSE, MAE, R², Plots"]
+```
 
 ## 🛠️ Setup and Usage
 
