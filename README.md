@@ -59,11 +59,11 @@ VAR_CONFIDENCE = 0.95
 #### 3. Architecture Diagram
 ```mermaid
 graph TD
-    Config[src/data/config.py] --> Loaders[src/data/loaders.py]
-    Config --> Analytics[src/analytics/*.py]
-    Config --> Tests[tests/*.py]
+    Config["src/data/config.py"] --> Loaders["src/data/loaders.py"]
+    Config --> Analytics["src/analytics/*.py"]
+    Config --> Tests["tests/*.py"]
     
-    subgraph Core Configuration
+    subgraph Core_Config ["Core Configuration"]
         Diff[TICKERS]
         Fred[FRED_SERIES]
         Weights[PORTFOLIO_WEIGHTS]
@@ -171,18 +171,18 @@ def var_parametric(returns, confidence=0.95):
 #### 2. Analytics Logic Flow
 ```mermaid
 graph LR
-    Input[Returns Series] --> Metrics
+    Input["Returns Series"] --> Metrics
     
-    subgraph Risk Metrics
-        Metrics --> Sharpe[Sharpe Ratio]
-        Metrics --> Sortino[Sortino Ratio]
-        Metrics --> VaR[Value at Risk]
-        Metrics --> CVaR[Expected Shortfall]
-        Metrics --> MDD[Max Drawdown]
+    subgraph Risk_Metrics ["Risk Metrics"]
+        Metrics --> Sharpe["Sharpe Ratio"]
+        Metrics --> Sortino["Sortino Ratio"]
+        Metrics --> VaR["Value at Risk"]
+        Metrics --> CVaR["Expected Shortfall"]
+        Metrics --> MDD["Max Drawdown"]
     end
     
     subgraph Models
-        Input --> CAPM[CAPM Alpha/Beta]
+        Input --> CAPM["CAPM Alpha/Beta"]
     end
 ```
 
