@@ -210,6 +210,71 @@ def test_cvar_worse_than_var():
 
 ## 🛠️ Setup and Usage
 
+### Day 4.5: Documentation & Knowledge Sharing
+
+**Goal:** Ensure the project state is well-documented for current and future developers.
+
+#### 1. Workflow Reporting
+We generated a detailed `workflow_report.md` capturing the architectural decisions, code patterns, and progress from Day 1 to Day 4. This serves as a snapshot of the system's evolution.
+
+#### 2. README Update
+The project `README.md` was updated to reflect the specific technical achievements of the first four days, replacing generic placeholders with actual implementation details.
+
+### Day 5: AAPL Regression & Diagnostics
+
+**Goal:** Build a robust OLS regression model to predict AAPL returns using technical indicators and market lags, ensuring statistical validity through rigorous diagnostics.
+
+#### 1. Feature Engineering
+We implemented `prepare_features` to construct a predictive dataset:
+-   **Target**: Next-day Log Returns ($t+1$).
+-   **Predictors**:
+    -   **Lags**: Previous day's return ($t-1$) for AAPL, S&P 500, and NASDAQ.
+    -   **Technical**: SMA_5 and SMA_20 trends.
+
+**Code Snippet: Feature Preparation**
+```python
+# src/analytics/regression.py
+
+def prepare_features(prices, market):
+    # ... feature generation ...
+    # Chronological Split (No Shuffling!)
+    split = int(len(X) * 0.8)
+    X_train, X_test = X.iloc[:split], X.iloc[split:]
+    return X_train, X_test, y_train, y_test
+```
+
+#### 2. Statistical Diagnostics
+A key requirement was "Full Diagnostics". We implemented:
+-   **VIF (Variance Inflation Factor)**: Checks for multicollinearity (Flag > 10).
+-   **Breusch-Pagan**: Tests for heteroscedasticity (non-constant variance). If detected, strict robust standard errors (HC3) are optionally used.
+-   **Durbin-Watson**: Tests for autocorrelation in residuals.
+-   **Jarque-Bera**: Tests if residuals are normally distributed.
+
+**Code Snippet: Diagnostics Logic**
+```python
+# src/analytics/regression.py
+
+def diagnostics(model, X, y):
+    # ... VIF calculation ...
+    
+    # Breusch-Pagan for Heteroscedasticity
+    bp_stat, bp_pval, _, _ = het_breuschpagan(resid, exog)
+    
+    # Durbin-Watson for Autocorrelation
+    dw = durbin_watson(resid)
+    
+    return {"is_heteroscedastic": bp_pval < 0.05, "dw_stat": dw, ...}
+```
+
+#### 3. Model Pipeline
+The `run_regression` orchestrator manages the entire flow:
+1.  Prepare Features (Train/Test Split).
+2.  Fit OLS Model (with Ridge fallback for singular matrices).
+3.  Run Diagnostics.
+4.  Evaluate (RMSE, MAE, R-squared).
+
+## 🛠️ Setup and Usage
+
 To get started with the project, follow these steps:
 
 1.  **Activate Conda Environment:**
