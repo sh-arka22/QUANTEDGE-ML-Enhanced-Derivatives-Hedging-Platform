@@ -267,25 +267,65 @@ if diag["is_heteroscedastic"]:
     model = sm.OLS(y, X).fit(cov_type="HC3")
 ```
 
-#### 4. Regression Pipeline
-The entire workflow is orchestrated to ensure data integrity and statistical validity.
+#### 4. Regression Architecture & Function Relationships
+
+The following diagram illustrates the internal dependency structure and execution flow of the `regression.py` module. It details how data preparation, model fitting, statistical diagnostics, error handling (robust refitting/Ridge fallback), and final evaluation are orchestrated.
 
 ```mermaid
 graph TD
-    Data[Prices & Macro Data] --> Features[Feature Engineering]
-    Features --> Split[Train/Test Split Chronological]
-    Split --> Fit[Fit OLS Model]
-    Fit --> Check{Is Matrix Singular?}
-    Check -- Yes --> Ridge[Fit Ridge Regression]
-    Check -- No --> Diag[Run Diagnostics]
+    %% Main Entry
+    Run[run_classification<br>Master Orchestrator]
     
-    Diag --> Het{Heteroscedasticity?}
-    Het -- Yes --> Robust[Refit with HC3 Errors]
-    Het -- No --> Eval[Evaluate Model]
+    %% Main Entry
+    Run[run_regression<br>Master Orchestrator]
+    
+    %% Phase 1: Data
+    PrepData[prepare_features]
+    Run -->|1. Build dataset & split| PrepData
+    
+    %% Phase 2: Base Fit
+    FitOLS[fit_ols]
+    Run -->|2. Fit primary model| FitOLS
+    FitOLS -.->|Success| OLS(Statsmodels OLS)
+    FitOLS -.->|Singular Matrix Error| Ridge(Sklearn Ridge)
+    
+    %% Phase 3: Diagnostics
+    DiagCalc[diagnostics]
+    Run -->|3. Run tests on residuals| DiagCalc
+    OLS -.-> DiagCalc
+    
+    subgraph "Diagnostic Suite"
+        DiagCalc --> VIF(Variance Inflation Factor)
+        DiagCalc --> BP(Breusch-Pagan: Heteroscedasticity)
+        DiagCalc --> DW(Durbin-Watson: Autocorrelation)
+        DiagCalc --> JB(Jarque-Bera: Normality)
+    end
+    
+    %% Phase 4: Error Handling & Refit
+    RefitRobust[_refit_robust]
+    Run -->|4. Check BP test| RefitRobust
+    BP -.->|If p < 0.05| RefitRobust
+    RefitRobust -.->|Re-estimate| RobustOLS(OLS with HC3 Errors)
+    
+    %% Phase 5: Evaluate
+    Eval[evaluate]
+    Run -->|5. Out-of-sample metrics| Eval
+    
+    OLS --> Eval
     Ridge --> Eval
-    Robust --> Eval
+    RobustOLS --> Eval
     
-    Eval --> Metrics["RMSE, MAE, R², Plots"]
+    Eval --> Metrics((RMSE, MAE, R², Residuals))
+    
+    %% Styling
+    classDef internal fill:#2A3A4A,stroke:#5A7A9A,stroke-width:2px,color:#fff
+    classDef orchestrator fill:#2b5e39,stroke:#4caf50,stroke-width:3px,color:#fff
+    classDef phase fill:#422a4a,stroke:#9c27b0,stroke-width:2px,color:#fff
+    classDef model fill:#8b4513,stroke:#d2691e,stroke-width:2px,color:#fff
+    
+    class Run orchestrator;
+    class OLS,Ridge,RobustOLS model;
+    class PrepData,FitOLS,DiagCalc,RefitRobust,Eval phase;
 ```
 
 ### Day 6: BAC ML Classification & Performance Improvements
@@ -378,7 +418,74 @@ graph TD
     Eval --> CM[Confusion Matrices]
 ```
 
-#### 8. Test Coverage (38 Tests)
+#### 8. Function Relationship Architecture
+
+The following diagram illustrates the internal dependency structure and execution flow of the `classification.py` module. It breaks down how the master orchestrator function leverages specialized helper functions for data preparation, technical indicators, feature selection, training, ensembling, and evaluation.
+
+```mermaid
+graph TD
+    %% Main Entry
+    Run[run_classification<br>Master Orchestrator]
+    
+    %% Phase 1: Data
+    PrepData[prepare_ml_features]
+    IndRSI(_compute_rsi)
+    IndMACD(_compute_macd)
+    IndBB(_compute_bollinger_pctb)
+    IndStoch(_compute_stochastic)
+    IndROC(_compute_roc)
+
+    Run -->|1. Build dataset & split| PrepData
+    PrepData --> IndRSI
+    PrepData --> IndMACD
+    PrepData --> IndBB
+    PrepData --> IndStoch
+    PrepData --> IndROC
+    
+    %% Phase 2: Feature Selection
+    MiCalc[compute_mutual_info]
+    FeatSelect[select_features]
+    
+    Run -->|2. Compute MI scores| MiCalc
+    Run -->|3. Filter features| FeatSelect
+    
+    %% Phase 3: Train / Tune
+    TrainGate{If Tune == true?}
+    
+    Train[train_models]
+    Tune[tune_models]
+    GridSize(_param_grid_size)
+    
+    Run -->|4. Fit models| TrainGate
+    TrainGate -->|False| Train
+    TrainGate -->|True| Tune
+    Tune -. Calls .-> GridSize
+    
+    %% Phase 4: Ensemble
+    Ensemble[build_ensemble]
+    Run -->|5. Merge top models| Ensemble
+    
+    Train -. Passes models to .-> Ensemble
+    Tune -. Passes models to .-> Ensemble
+    
+    %% Phase 5: Evaluate
+    Eval[evaluate_models]
+    FeatImp[feature_importance]
+    
+    Run -->|6. Calculate metrics| Eval
+    Run -->|7. Extract insights| FeatImp
+    
+    %% Styling
+    classDef internal fill:#2A3A4A,stroke:#5A7A9A,stroke-width:2px,color:#fff
+    classDef orchestrator fill:#2b5e39,stroke:#4caf50,stroke-width:3px,color:#fff
+    classDef phase fill:#422a4a,stroke:#9c27b0,stroke-width:2px,color:#fff
+    
+    class Run orchestrator;
+    class IndRSI,IndMACD,IndBB,IndStoch,IndROC,GridSize internal;
+    class PrepData,MiCalc,FeatSelect,Train,Tune,Ensemble,Eval,FeatImp phase;
+```
+
+#### 9. Test Coverage (38 Tests)
 
 | Test Class | Tests | What It Validates |
 | :--- | :--- | :--- |
