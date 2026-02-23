@@ -5,8 +5,25 @@ import warnings
 import numpy as np
 import pandas as pd
 from arch import arch_model
+from statsmodels.stats.diagnostic import het_arch
 
 from src.data import config as cfg
+
+
+def arch_lm_test(returns: pd.Series, lags: int = 5) -> dict:
+    """Engle's ARCH LM test for heteroscedasticity in returns."""
+    returns = returns.dropna()
+    if len(returns) < lags * 2:
+        lags = max(1, len(returns) // 10)
+        warnings.warn(f"Insufficient data for requested lags, reduced to {lags}")
+
+    stat, pvalue, _, _ = het_arch(returns.values, nlags=lags)
+    return {
+        "statistic": float(stat),
+        "pvalue": float(pvalue),
+        "has_arch_effects": pvalue < 0.05,
+        "lags": lags,
+    }
 
 
 def fit_garch(returns: pd.Series, p: int = 1, q: int = 1) -> dict | None:
@@ -48,7 +65,7 @@ def fit_garch(returns: pd.Series, p: int = 1, q: int = 1) -> dict | None:
     long_run_vol = float(np.sqrt(long_run_var) / 100 * np.sqrt(cfg.TRADING_DAYS)) if np.isfinite(long_run_var) else np.nan
 
     # Conditional volatility: convert from percentage to decimal, then annualize
-    cond_vol = result.conditional_volatility / 100 * np.sqrt(cfg.TRADING_DAYS)
+    cond_vol = np.maximum(result.conditional_volatility, 0) / 100 * np.sqrt(cfg.TRADING_DAYS)
 
     return {
         "params": {
@@ -74,7 +91,8 @@ def fit_ewma(returns: pd.Series, lambda_: float = cfg.EWMA_LAMBDA) -> pd.Series:
         lambda_ = cfg.EWMA_LAMBDA
 
     daily_vol = returns.pow(2).ewm(alpha=1 - lambda_, adjust=False).mean().pow(0.5)
-    return daily_vol * np.sqrt(cfg.TRADING_DAYS)
+    result = daily_vol * np.sqrt(cfg.TRADING_DAYS)
+    return result.ffill().fillna(0.0)
 
 
 def forecast_volatility(garch_result, horizon: int = 30) -> pd.Series:
@@ -153,6 +171,9 @@ def run_volatility(returns_series: pd.Series) -> dict:
     """Orchestrator: GARCH + EWMA + forecast + cones + comparison."""
     returns_series = returns_series.dropna()
 
+    # ARCH LM test
+    arch_test = arch_lm_test(returns_series)
+
     # GARCH(1,1)
     garch = fit_garch(returns_series)
 
@@ -169,6 +190,7 @@ def run_volatility(returns_series: pd.Series) -> dict:
     comparison = realized_vs_predicted(returns_series, garch)
 
     return {
+        "arch_lm_test": arch_test,
         "garch": garch,
         "ewma_vol": ewma_vol,
         "forecast": forecast,
