@@ -29,6 +29,7 @@ quant/
 .coverage
 htmlcov/
 .mypy_cache/
+scripts/
 
 # OS
 .DS_Store

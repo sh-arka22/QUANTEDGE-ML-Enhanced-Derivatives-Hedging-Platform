@@ -1,0 +1,110 @@
+{
+  "portfolio": {
+    "port_ann_return": 0.1394770943391853,
+    "port_ann_vol": 0.2834875047208616,
+    "port_sharpe": 0.4214545345017214,
+    "port_sortino": 0.4195827581239772,
+    "port_max_drawdown": 0.5083227704077782,
+    "port_cum_return": 1.6908226937555706,
+    "port_alpha": 4.338544846493144e-05,
+    "port_alpha_ann": 0.010933133013162724,
+    "port_alpha_pvalue": 0.8493784399576757,
+    "port_beta": 1.2163366686054715,
+    "bm_ann_return": 0.10568123500987443,
+    "bm_ann_vol": 0.17893068872631976,
+    "bm_sharpe": 0.47885153530553176,
+    "bm_max_drawdown": 0.36102639752384924,
+    "bm_cum_return": 1.443432994040053,
+    "info_ratio": 0.18196022713231247,
+    "tracking_error": 0.1857321232333711
+  },
+  "regression": {
+    "model_rmse": 0.013511629714125964,
+    "model_mae": 0.010129298955765826,
+    "model_r2": -0.014234032371948535,
+    "naive_rmse": 0.0183696796062043,
+    "naive_mae": 0.014092809817943022,
+    "rmse_improvement_pct": 26.44602408001468,
+    "features_below_vif": 2,
+    "total_features": 5,
+    "diagnostics_passed": 1,
+    "diagnostics_total": 4,
+    "diag_details": {
+      "no_multicollinearity": false,
+      "homoscedasticity": false,
+      "no_autocorrelation": true,
+      "normality": false
+    }
+  },
+  "classification": {
+    "model_results": {
+      "Decision Tree": {
+        "accuracy": 0.4789579158316633,
+        "precision": 0.46153846153846156,
+        "recall": 0.3157894736842105,
+        "f1": 0.375,
+        "roc_auc": 0.48909935094145623
+      },
+      "Random Forest": {
+        "accuracy": 0.5110220440881763,
+        "precision": 0.5060240963855421,
+        "recall": 0.5101214574898786,
+        "f1": 0.5080645161290323,
+        "roc_auc": 0.5201786517575993
+      },
+      "KNN": {
+        "accuracy": 0.5230460921843687,
+        "precision": 0.5160142348754448,
+        "recall": 0.5870445344129555,
+        "f1": 0.5492424242424242,
+        "roc_auc": 0.5385739991003149
+      },
+      "SVM": {
+        "accuracy": 0.4729458917835671,
+        "precision": 0.4689922480620155,
+        "recall": 0.4898785425101215,
+        "f1": 0.4792079207920792,
+        "roc_auc": 0.5100411284621811
+      },
+      "Voting Ensemble": {
+        "accuracy": 0.5210420841683366,
+        "precision": 0.5142857142857142,
+        "recall": 0.582995951417004,
+        "f1": 0.5464895635673624,
+        "roc_auc": 0.5426707795128849
+      }
+    },
+    "best_single_model": "KNN",
+    "best_single_f1": 0.5492424242424242,
+    "best_single_accuracy": 0.5230460921843687,
+    "best_single_auc": 0.5385739991003149,
+    "ensemble_f1": 0.5464895635673624,
+    "ensemble_accuracy": 0.5210420841683366,
+    "ensemble_auc": 0.5426707795128849,
+    "ensemble_f1_lift_pct": -0.501210495321588,
+    "random_baseline_accuracy": 0.5,
+    "majority_baseline_f1": 0.6621983914209115,
+    "majority_baseline_accuracy": 0.49498997995991983,
+    "best_acc_vs_random_pct": 4.609218436873741,
+    "total_features_initial": 19,
+    "features_kept": 8,
+    "feature_retention_pct": 42.10526315789473,
+    "n_models": 5,
+    "data_rows": 499,
+    "class_distribution": {
+      "0": 983,
+      "1": 1013
+    }
+  },
+  "infrastructure": {
+    "src_lines": 1048,
+    "test_lines": 760,
+    "total_lines": 1808,
+    "src_modules": 5,
+    "test_files": 4,
+    "test_count": 70,
+    "test_passed": 0,
+    "test_pass_rate": 0.0,
+    "models_trained": 6
+  }
+}
