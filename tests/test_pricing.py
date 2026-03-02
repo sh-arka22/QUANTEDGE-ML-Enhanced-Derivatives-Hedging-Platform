@@ -1,10 +1,11 @@
-"""Tests for Black-Scholes pricing, Greeks, and implied volatility."""
+"""Tests for Black-Scholes pricing, Greeks, implied volatility, and CRR binomial tree."""
 
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
 from src.pricing.black_scholes import price, greeks, implied_volatility, vol_surface
+from src.pricing.binomial import crr_price, crr_greeks, american_premium
 
 
 # ---------------------------------------------------------------------------
@@ -198,3 +199,113 @@ class TestVolSurface:
         bad_prices = np.array([[0.0]])  # price=0 -> no IV
         surf = vol_surface(100, strikes, expiries, 0.05, bad_prices, "call")
         assert np.isnan(surf.values[0, 0])
+
+
+# ---------------------------------------------------------------------------
+# CRR Binomial Tree
+# ---------------------------------------------------------------------------
+
+class TestCRRPrice:
+    def test_converges_to_bs_call(self):
+        """European call at N=500 matches BS within 0.5%."""
+        S, K, T, r, sigma = 100, 100, 1.0, 0.05, 0.2
+        bs = price(S, K, T, r, sigma, "call")
+        crr = crr_price(S, K, T, r, sigma, N=500, option_type="call", american=False)
+        assert_allclose(crr, bs, rtol=0.005)
+
+    def test_converges_to_bs_put(self):
+        """European put at N=500 matches BS within 0.5%."""
+        S, K, T, r, sigma = 100, 110, 0.5, 0.05, 0.3
+        bs = price(S, K, T, r, sigma, "put")
+        crr = crr_price(S, K, T, r, sigma, N=500, option_type="put", american=False)
+        assert_allclose(crr, bs, rtol=0.005)
+
+    def test_intrinsic_at_expiry(self):
+        """T=0 returns intrinsic value."""
+        assert crr_price(105, 100, 0, 0.05, 0.2, option_type="call") == 5.0
+        assert crr_price(95, 100, 0, 0.05, 0.2, option_type="put") == 5.0
+        assert crr_price(95, 100, 0, 0.05, 0.2, option_type="call") == 0.0
+
+    def test_american_put_gte_european(self):
+        """American put >= European put."""
+        S, K, T, r, sigma = 90, 100, 1.0, 0.08, 0.3
+        am = crr_price(S, K, T, r, sigma, N=200, option_type="put", american=True)
+        eu = crr_price(S, K, T, r, sigma, N=200, option_type="put", american=False)
+        assert am >= eu - 1e-10
+
+    def test_american_call_no_dividend_equals_european(self):
+        """American call (no dividend) ≈ European call."""
+        S, K, T, r, sigma = 100, 100, 1.0, 0.05, 0.2
+        am = crr_price(S, K, T, r, sigma, N=300, option_type="call", american=True)
+        eu = crr_price(S, K, T, r, sigma, N=300, option_type="call", american=False)
+        assert_allclose(am, eu, atol=0.01)
+
+    def test_negative_sigma_raises(self):
+        with pytest.raises(ValueError, match="sigma"):
+            crr_price(100, 100, 1.0, 0.05, -0.2)
+
+    def test_n_less_than_1_raises(self):
+        with pytest.raises(ValueError, match="N must"):
+            crr_price(100, 100, 1.0, 0.05, 0.2, N=0)
+
+    def test_n_capped_at_max(self):
+        """N > MAX_TREE_STEPS is capped, not errored."""
+        with pytest.warns(UserWarning, match="exceeds max"):
+            result = crr_price(100, 100, 1.0, 0.05, 0.2, N=5000)
+        assert result > 0
+
+    def test_deep_itm_put(self):
+        """Deep ITM American put should be near intrinsic."""
+        am = crr_price(50, 100, 0.1, 0.05, 0.2, N=200, option_type="put", american=True)
+        assert am >= 49.0  # near intrinsic of 50
+
+    def test_hull_example(self):
+        """Hull: S=50, K=52, T=2, r=0.05, sigma=0.3, American put."""
+        am = crr_price(50, 52, 2.0, 0.05, 0.3, N=500, option_type="put", american=True)
+        assert 7.0 < am < 9.0  # Hull ~7.47 (varies by N)
+
+
+class TestCRRGreeks:
+    def test_delta_call_bounds(self):
+        """CRR call delta in [0, 1]."""
+        g = crr_greeks(100, 100, 1.0, 0.05, 0.2, N=200, option_type="call")
+        assert 0 <= g["delta"] <= 1
+
+    def test_delta_put_negative(self):
+        """CRR put delta in [-1, 0]."""
+        g = crr_greeks(100, 100, 1.0, 0.05, 0.2, N=200, option_type="put")
+        assert -1 <= g["delta"] <= 0
+
+    def test_gamma_positive(self):
+        """CRR gamma is positive."""
+        g = crr_greeks(100, 100, 1.0, 0.05, 0.2, N=200, option_type="call")
+        assert g["gamma"] > 0
+
+    def test_delta_matches_bs(self):
+        """CRR delta at N=500 close to BS delta."""
+        g_crr = crr_greeks(100, 100, 1.0, 0.05, 0.2, N=500, option_type="call")
+        g_bs = greeks(100, 100, 1.0, 0.05, 0.2)
+        assert_allclose(g_crr["delta"], float(g_bs["delta_call"]), atol=0.01)
+
+    def test_expired_returns_nan(self):
+        """T=0 Greeks return NaN."""
+        g = crr_greeks(100, 100, 0, 0.05, 0.2)
+        assert np.isnan(g["delta"])
+
+
+class TestAmericanPremium:
+    def test_put_premium_positive(self):
+        """American put premium > 0 for ITM."""
+        prem = american_premium(90, 100, 1.0, 0.08, 0.3, N=200, option_type="put")
+        assert prem > 0
+
+    def test_call_premium_near_zero(self):
+        """American call (no dividend) premium ≈ 0."""
+        prem = american_premium(100, 100, 1.0, 0.05, 0.2, N=300, option_type="call")
+        assert abs(prem) < 0.05
+
+    def test_premium_increases_with_rate(self):
+        """Higher rate -> higher early exercise premium for puts."""
+        prem_low = american_premium(95, 100, 1.0, 0.02, 0.3, N=200, option_type="put")
+        prem_high = american_premium(95, 100, 1.0, 0.10, 0.3, N=200, option_type="put")
+        assert prem_high > prem_low
