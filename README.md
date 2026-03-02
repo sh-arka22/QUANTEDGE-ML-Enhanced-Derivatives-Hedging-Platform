@@ -62,41 +62,114 @@ graph LR
 
 ---
 
-## Quick Start
+## Running the Project
+
+### Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Python | 3.11+ | Required for type hint syntax (`dict \| None`) |
+| Conda | Any recent | For environment management (or use `venv`) |
+| Git | Any | To clone the repository |
+| Internet | Required on first run | yfinance downloads 10 years of market data |
+
+### Option A: Conda (Recommended)
 
 ```bash
-# 1. Clone and set up environment
-git clone <repo-url> && cd quant-platform
+# 1. Clone the repository
+git clone <repo-url>
+cd quant-platform
+
+# 2. Create and activate conda environment
 conda create -p ./quant python=3.11 -y
 conda activate ./quant
+
+# 3. Install all dependencies
 pip install -r requirements.txt
 
-# 2. Run the dashboard
+# 4. Launch the dashboard
 streamlit run src/ui/app.py
+```
 
-# 3. Run tests
+The app opens at **http://localhost:8501**. First load takes ~10-15 seconds to fetch market data (cached for 1 hour after that).
+
+### Option B: venv (No Conda)
+
+```bash
+# 1. Clone and enter the project
+git clone <repo-url>
+cd quant-platform
+
+# 2. Create virtual environment
+python3.11 -m venv .venv
+source .venv/bin/activate    # Linux/Mac
+# .venv\Scripts\activate     # Windows
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Launch the dashboard
+streamlit run src/ui/app.py
+```
+
+### Option C: Docker
+
+```bash
+# Build the image (~2-3 min first time)
+docker build -t quant-platform .
+
+# Run the container
+docker run -p 8501:8501 quant-platform
+
+# With FRED macro data
+docker run -p 8501:8501 -e FRED_API_KEY=your_key quant-platform
+```
+
+### Enabling FRED Macro Data (Optional)
+
+The app works fully without a FRED API key. To enable macro features (yield curve, VIX, GDP, CPI overlays in classification):
+
+1. Get a free key at https://fred.stlouisfed.org/docs/api/api_key.html
+2. Run with the key:
+   ```bash
+   # Via environment variable
+   FRED_API_KEY=your_key streamlit run src/ui/app.py
+
+   # Or enter it in the sidebar text field at runtime
+   ```
+
+### Running Tests
+
+```bash
+# All 171 tests (~90 seconds)
 pytest tests/ -v
 
-# 4. Generate resume metrics
+# Single test file
+pytest tests/test_pricing.py -v
+
+# Single test
+pytest tests/test_pricing.py::TestBSPrice::test_hull_call -v
+```
+
+### Generating Resume Metrics
+
+```bash
+# Runs all analytics against real market data, prints bullet points
 python scripts/generate_metrics.py
+
+# Output saved to results/metrics_report.json
 ```
 
-Opens at **http://localhost:8501**.
+### Troubleshooting
 
-### With FRED macro data (optional)
-
-```bash
-FRED_API_KEY=your_key streamlit run src/ui/app.py
-```
-
-The app works fully without a FRED key -- macro features are gracefully disabled.
-
-### Docker
-
-```bash
-docker build -t quant-platform .
-docker run -p 8501:8501 quant-platform
-```
+| Issue | Solution |
+|-------|----------|
+| `ModuleNotFoundError: No module named 'src'` | Run from the project root: `cd quant-platform && streamlit run src/ui/app.py` |
+| `No data found` on first load | Check internet connection -- yfinance needs to download stock data |
+| Slow first load (~15s) | Normal -- fetching 10 years of data for 6 tickers. Cached for 1 hour after. |
+| `arch` package install fails | Install build tools first: `pip install --upgrade pip setuptools wheel` |
+| Port 8501 already in use | Kill existing process: `pkill -f streamlit` or use `--server.port 8502` |
+| Memory issues on cloud | The app is optimized for 1GB RAM (float32 plotting, lazy tab loading, capped grids) |
 
 ---
 
