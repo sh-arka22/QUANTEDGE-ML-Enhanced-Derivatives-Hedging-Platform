@@ -1,30 +1,30 @@
 {
   "portfolio": {
-    "port_ann_return": 0.1394770943391853,
-    "port_ann_vol": 0.2834875047208616,
-    "port_sharpe": 0.4214545345017214,
-    "port_sortino": 0.4195827581239772,
-    "port_max_drawdown": 0.5083227704077782,
-    "port_cum_return": 1.6908226937555706,
-    "port_alpha": 4.338544846493144e-05,
-    "port_alpha_ann": 0.010933133013162724,
-    "port_alpha_pvalue": 0.8493784399576757,
-    "port_beta": 1.2163366686054715,
+    "port_ann_return": 0.13947708745917264,
+    "port_ann_vol": 0.2834875011835965,
+    "port_sharpe": 0.421454515491302,
+    "port_sortino": 0.4195827691185121,
+    "port_max_drawdown": 0.5083226522245046,
+    "port_cum_return": 1.6908225449471885,
+    "port_alpha": 4.3385480889343136e-05,
+    "port_alpha_ann": 0.01093314118411447,
+    "port_alpha_pvalue": 0.8493783492274221,
+    "port_beta": 1.2163365261869572,
     "bm_ann_return": 0.10568123500987443,
     "bm_ann_vol": 0.17893068872631976,
     "bm_sharpe": 0.47885153530553176,
     "bm_max_drawdown": 0.36102639752384924,
     "bm_cum_return": 1.443432994040053,
-    "info_ratio": 0.18196022713231247,
-    "tracking_error": 0.1857321232333711
+    "info_ratio": 0.18196017132772602,
+    "tracking_error": 0.18573214238421965
   },
   "regression": {
-    "model_rmse": 0.013511629714125964,
-    "model_mae": 0.010129298955765826,
-    "model_r2": -0.014234032371948535,
-    "naive_rmse": 0.0183696796062043,
-    "naive_mae": 0.014092809817943022,
-    "rmse_improvement_pct": 26.44602408001468,
+    "model_rmse": 0.013511638798070272,
+    "model_mae": 0.010129310613521368,
+    "model_r2": -0.014234018352631939,
+    "naive_rmse": 0.018369701543710027,
+    "naive_mae": 0.014092829615314773,
+    "rmse_improvement_pct": 26.44606246911619,
     "features_below_vif": 2,
     "total_features": 5,
     "diagnostics_passed": 1,
@@ -46,11 +46,11 @@
         "roc_auc": 0.48909935094145623
       },
       "Random Forest": {
-        "accuracy": 0.5110220440881763,
-        "precision": 0.5060240963855421,
-        "recall": 0.5101214574898786,
-        "f1": 0.5080645161290323,
-        "roc_auc": 0.5201786517575993
+        "accuracy": 0.5070140280561122,
+        "precision": 0.5020080321285141,
+        "recall": 0.5060728744939271,
+        "f1": 0.5040322580645161,
+        "roc_auc": 0.5189094531199795
       },
       "KNN": {
         "accuracy": 0.5230460921843687,
@@ -64,24 +64,24 @@
         "precision": 0.4689922480620155,
         "recall": 0.4898785425101215,
         "f1": 0.4792079207920792,
-        "roc_auc": 0.5100411284621811
+        "roc_auc": 0.5099447336289441
       },
       "Voting Ensemble": {
-        "accuracy": 0.5210420841683366,
-        "precision": 0.5142857142857142,
+        "accuracy": 0.5230460921843687,
+        "precision": 0.5161290322580645,
         "recall": 0.582995951417004,
-        "f1": 0.5464895635673624,
-        "roc_auc": 0.5426707795128849
+        "f1": 0.5475285171102662,
+        "roc_auc": 0.5421566737356212
       }
     },
     "best_single_model": "KNN",
     "best_single_f1": 0.5492424242424242,
     "best_single_accuracy": 0.5230460921843687,
     "best_single_auc": 0.5385739991003149,
-    "ensemble_f1": 0.5464895635673624,
-    "ensemble_accuracy": 0.5210420841683366,
-    "ensemble_auc": 0.5426707795128849,
-    "ensemble_f1_lift_pct": -0.501210495321588,
+    "ensemble_f1": 0.5475285171102662,
+    "ensemble_accuracy": 0.5230460921843687,
+    "ensemble_auc": 0.5421566737356212,
+    "ensemble_f1_lift_pct": -0.31204929854463287,
     "random_baseline_accuracy": 0.5,
     "majority_baseline_f1": 0.6621983914209115,
     "majority_baseline_accuracy": 0.49498997995991983,
@@ -97,14 +97,14 @@
     }
   },
   "infrastructure": {
-    "src_lines": 1048,
-    "test_lines": 760,
-    "total_lines": 1808,
-    "src_modules": 5,
-    "test_files": 4,
-    "test_count": 70,
-    "test_passed": 0,
-    "test_pass_rate": 0.0,
+    "src_lines": 2465,
+    "test_lines": 1504,
+    "total_lines": 3969,
+    "src_modules": 14,
+    "test_files": 7,
+    "test_count": 171,
+    "test_passed": 171,
+    "test_pass_rate": 1.0,
     "models_trained": 6
   }
 }
