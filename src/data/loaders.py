@@ -158,6 +158,9 @@ def align_data(equity_df: pd.DataFrame, macro_df: pd.DataFrame) -> pd.DataFrame:
     # Drop rows where ALL macro columns are NaN
     macro_cols = [c for c in macro.columns if c in merged.columns]
     if macro_cols:
+        # Forward-fill sparse macro series (GDP=quarterly, CPI=monthly)
+        for mc in macro_cols:
+            merged[mc] = merged[mc].ffill()
         merged = merged.dropna(subset=macro_cols, how="all")
 
     if len(merged) < cfg.MIN_PERIODS:

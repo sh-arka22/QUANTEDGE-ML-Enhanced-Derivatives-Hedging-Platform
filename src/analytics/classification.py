@@ -149,6 +149,10 @@ def prepare_ml_features(
                 direction="backward",
                 tolerance=pd.Timedelta("90d"),
             ).set_index("date")
+            # Forward-fill macro columns (GDP=quarterly, CPI=monthly create NaN gaps)
+            for mc in macro_cols:
+                if mc in merged.columns:
+                    merged[mc] = merged[mc].ffill()
             feat = merged
 
     # Combine features and target, drop NaN/inf
