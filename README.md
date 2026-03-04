@@ -172,15 +172,15 @@ quant-platform/
 
 ```mermaid
 graph LR
-    YF[Yahoo Finance<br>6 tickers: MS, JPM, BAC,<br>AAPL, ^GSPC, ^IXIC] --> Loaders[loaders.py<br>fetch_equity + fetch_fred]
-    FRED[FRED API<br>7 series: DGS10, T10Y2Y,<br>VIXCLS, GDPC1, CPIAUCSL,<br>DTWEXBGS, POILWTIUSDQ] -.->|optional| Loaders
-    Loaders --> |merge_asof<br>backward, 90d| Config[config.py<br>TRADING_DAYS=252<br>PORTFOLIO_WEIGHTS<br>15 constants]
-    Loaders --> |log returns| Portfolio[portfolio.py<br>Sharpe, Sortino, CAPM<br>VaR, CVaR, drawdown]
-    Loaders --> |lag, vol, momentum features| Regression[regression.py<br>OLS, VIF, BP, DW, JB]
-    Loaders --> |19 technical indicators| Classification[classification.py<br>DT, RF, KNN, SVM, Ensemble]
-    Loaders --> |JPM returns| Volatility[volatility.py<br>GARCH(1,1), EWMA]
-    Loaders --> |spot prices| Pricing[black_scholes.py<br>binomial.py<br>hedging.py]
-    Portfolio --> UI[Streamlit Dashboard<br>4 tabs, Plotly dark theme<br>plotly_dark template]
+    YF["Yahoo Finance<br>6 tickers: MS, JPM, BAC,<br>AAPL, GSPC, IXIC"] --> Loaders["loaders.py<br>fetch_equity + fetch_fred"]
+    FRED["FRED API<br>7 series: DGS10, T10Y2Y,<br>VIXCLS, GDPC1, CPIAUCSL,<br>DTWEXBGS, POILWTIUSDQ"] -.->|optional| Loaders
+    Loaders --> |"merge_asof<br>backward, 90d"| Config["config.py<br>TRADING_DAYS=252<br>PORTFOLIO_WEIGHTS<br>15 constants"]
+    Loaders --> |log returns| Portfolio["portfolio.py<br>Sharpe, Sortino, CAPM<br>VaR, CVaR, drawdown"]
+    Loaders --> |"lag, vol, momentum features"| Regression["regression.py<br>OLS, VIF, BP, DW, JB"]
+    Loaders --> |19 technical indicators| Classification["classification.py<br>DT, RF, KNN, SVM, Ensemble"]
+    Loaders --> |JPM returns| Volatility["volatility.py<br>GARCH 1,1 - EWMA"]
+    Loaders --> |spot prices| Pricing["black_scholes.py<br>binomial.py<br>hedging.py"]
+    Portfolio --> UI["Streamlit Dashboard<br>4 tabs, Plotly dark theme<br>plotly_dark template"]
     Regression --> UI
     Classification --> UI
     Volatility --> UI
