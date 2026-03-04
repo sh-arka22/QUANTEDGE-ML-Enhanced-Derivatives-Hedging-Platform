@@ -28,8 +28,7 @@ def _render_regression(prices_df: pd.DataFrame, market_returns) -> None:
     m2.metric("R-squared", f"{metrics['r_squared']:.4f}")
     m3.metric("MAE", f"{metrics['mae']:.6f}")
 
-    if diag["is_heteroscedastic"]:
-        st.info("Heteroscedasticity detected — using HC3 robust standard errors.")
+    st.info("Newey-West HAC standard errors applied (robust to heteroscedasticity and autocorrelation).")
 
     # Diagnostics
     d1, d2, d3, d4 = st.columns(4)

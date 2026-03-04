@@ -43,3 +43,7 @@ Thumbs.db
 
 # Documents
 *.docx
+
+# Claude configuration
+.claude/
+CLAUDE.md

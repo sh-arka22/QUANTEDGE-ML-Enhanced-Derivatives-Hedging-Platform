@@ -42,15 +42,15 @@ def test_prepare_features_shape():
 
 
 def test_prepare_features_expected_columns():
-    """Feature set should include SMA, lag, and market lag columns."""
+    """Feature set should include return-space features."""
     prices, market = _make_prices()
     X_train, _, _, _ = prepare_features(prices, market)
     cols = X_train.columns.tolist()
-    assert "SMA_5" in cols
-    assert "SMA_20" in cols
     assert "Lag_1_Return" in cols
-    assert "SP500_Lag1" in cols
-    assert "NASDAQ_Lag1" in cols
+    assert "Lag_2_Return" in cols
+    assert "Volatility_5d" in cols
+    assert "MomentumRatio_5_20" in cols
+    assert "Market_Lag1" in cols
 
 
 def test_prepare_features_chronological_order():
@@ -76,6 +76,34 @@ def test_prepare_features_missing_aapl_raises():
     market = pd.DataFrame({"^GSPC": [3000.0] * 200}, index=prices.index)
     with pytest.raises(ValueError, match="AAPL"):
         prepare_features(prices, market)
+
+
+def test_prepare_features_winsorized_target():
+    """Target winsorization clips to train-set 1st/99th percentile bounds."""
+    prices, market = _make_prices()
+    X_train, X_test, y_train, y_test = prepare_features(prices, market)
+    # Reconstruct raw (pre-clip) train target to get the original bounds
+    aapl_ret = np.log(prices["AAPL"] / prices["AAPL"].shift(1))
+    raw_target = aapl_ret.shift(-1)
+    raw_y_train = raw_target.reindex(y_train.index)
+    from src.data import config as cfg
+    lo = raw_y_train.quantile(cfg.WINSORIZE_PCTL)
+    hi = raw_y_train.quantile(1 - cfg.WINSORIZE_PCTL)
+    assert y_train.min() >= lo - 1e-10
+    assert y_train.max() <= hi + 1e-10
+    assert y_test.min() >= lo - 1e-10
+    assert y_test.max() <= hi + 1e-10
+
+
+def test_prepare_features_low_vif():
+    """Return-space features should have VIF below threshold."""
+    from src.analytics.regression import fit_ols, diagnostics as diag_fn
+    prices, market = _make_prices()
+    X_train, _, y_train, _ = prepare_features(prices, market)
+    model = fit_ols(X_train, y_train)
+    diag = diag_fn(model, X_train, y_train)
+    for name, val in diag["vif"].items():
+        assert val < 10, f"VIF for {name} = {val:.1f}, should be < 10"
 
 
 # --- fit_ols tests ---
@@ -172,3 +200,10 @@ def test_run_regression_full_pipeline():
     assert expected_keys == set(result.keys())
     assert result["metrics"]["rmse"] >= 0
     assert len(result["feature_names"]) > 0
+
+
+def test_run_regression_hac_always_computed():
+    """HAC robust model should always be computed for financial data."""
+    prices, market = _make_prices()
+    result = run_regression(prices, market)
+    assert result["robust_model"] is not None, "HAC robust model should always be returned"

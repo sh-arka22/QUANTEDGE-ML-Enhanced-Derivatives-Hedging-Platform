@@ -24,20 +24,22 @@ def prepare_features(
     aapl = prices_df["AAPL"].copy()
     aapl_ret = np.log(aapl / aapl.shift(1))
 
-    # Features
+    # Features — all in return/ratio space to avoid multicollinearity
     feat = pd.DataFrame(index=prices_df.index)
-    feat["SMA_5"] = aapl.rolling(5).mean()
-    feat["SMA_20"] = aapl.rolling(20).mean()
     feat["Lag_1_Return"] = aapl_ret.shift(1)
+    feat["Lag_2_Return"] = aapl_ret.shift(2)
+    feat["Volatility_5d"] = aapl_ret.rolling(5).std()
+    sma5 = aapl.rolling(5).mean()
+    sma20 = aapl.rolling(20).mean()
+    feat["MomentumRatio_5_20"] = sma5 / sma20 - 1
 
-    # Market lagged returns
+    # Single market factor (SP500 only) to avoid index collinearity
     if isinstance(market_df, pd.Series):
         market_df = market_df.to_frame()
 
-    for col in market_df.columns:
-        mkt_ret = np.log(market_df[col] / market_df[col].shift(1))
-        label = col.replace("^GSPC", "SP500").replace("^IXIC", "NASDAQ")
-        feat[f"{label}_Lag1"] = mkt_ret.shift(1)
+    sp500_col = next((c for c in market_df.columns if "GSPC" in c or "SP500" in c), market_df.columns[0])
+    mkt_ret = np.log(market_df[sp500_col] / market_df[sp500_col].shift(1))
+    feat["Market_Lag1"] = mkt_ret.shift(1)
 
     # Target: next-day return
     target = aapl_ret.shift(-1)
@@ -60,6 +62,12 @@ def prepare_features(
     split = int(len(X) * 0.8)
     X_train, X_test = X.iloc[:split], X.iloc[split:]
     y_train, y_test = y.iloc[:split], y.iloc[split:]
+
+    # Winsorize target using TRAIN percentiles only (no look-ahead bias)
+    lo = y_train.quantile(cfg.WINSORIZE_PCTL)
+    hi = y_train.quantile(1 - cfg.WINSORIZE_PCTL)
+    y_train = y_train.clip(lower=lo, upper=hi)
+    y_test = y_test.clip(lower=lo, upper=hi)
 
     return X_train, X_test, y_train, y_test
 
@@ -136,9 +144,9 @@ def diagnostics(model, X: pd.DataFrame, y: pd.Series) -> dict:
 
 
 def _refit_robust(X_train: pd.DataFrame, y_train: pd.Series):
-    """Refit OLS with HC3 robust standard errors."""
+    """Refit OLS with Newey-West HAC standard errors."""
     X_c = sm.add_constant(X_train, has_constant="add")
-    return sm.OLS(y_train, X_c).fit(cov_type="HC3")
+    return sm.OLS(y_train, X_c).fit(cov_type="HAC", cov_kwds={"maxlags": cfg.HAC_MAXLAGS})
 
 
 def evaluate(model, X_test: pd.DataFrame, y_test: pd.Series) -> dict:
@@ -177,9 +185,9 @@ def run_regression(prices_df: pd.DataFrame, market_df: pd.DataFrame) -> dict:
     model = fit_ols(X_train, y_train)
     diag = diagnostics(model, X_train, y_train)
 
-    # Refit with robust SEs if heteroscedastic
+    # Always refit with Newey-West HAC SEs (financial data has conditional heteroscedasticity)
     robust_model = None
-    if diag["is_heteroscedastic"] and hasattr(model, "resid"):
+    if hasattr(model, "resid"):
         robust_model = _refit_robust(X_train, y_train)
 
     metrics = evaluate(model, X_test, y_test)
